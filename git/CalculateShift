@@ -1,0 +1,67 @@
+from astropy.io import fits
+import numpy as np 
+import matplotlib.pyplot as pl 
+import scipy as sp
+from image_registration import register_images
+from scipy import interpolate
+from scipy import optimize
+from lmfit import Model
+
+filenamelist=["id4301qgq", "id4301paq", "id4301qmq", "id4301pgq", "id4301qsq", "id4301pmq", "id4301qyq", "id4301psq", "id4301pyq", "id4301q5q", "id4301oyq", "id4301p5q", "id4301qfq", "id4301qlq", "id4301pfq", "id4301qrq", "id4301plq", "id4301qxq", "id4301r4q", "id4301pxq", "id4301q4q", "id4301p4q", "id4301qeq", "id4301qkq", "id4301peq", "id4301qqq", "id4301pkq", "id4301qwq", "id4301r3q", "id4301pqq", "id4301pwq", "id4301q3q", "id4301q9q", "id4301p3q", "id4301qdq", "id4301qjq", "id4301pdq", "id4301qpq", "id4301pjq", "id4301qvq", "id4301r2q", "id4301ppq", "id4301pvq", "id4301q2q", "id4301q8q", "id4301p2q", "id4301qcq", "id4301p8q", "id4301qiq", "id4301pcq", "id4301qoq", "id4301piq", "id4301quq", "id4301r1q", "id4301poq", "id4301puq", "id4301q7q", "id4301p1q", "id4301qbq", "id4301p7q", "id4301qhq", "id4301pbq", "id4301qnq", "id4301qtq", "id4301pnq", "id4301r0q", "id4301qzq", "id4301ptq", "id4301q0q", "id4301pzq", "id4301q6q", "id4301p0q", "id4301qaq", "id4301ozq"]
+def RemoveBadPixels(image,DQ,error,size):
+	for i in range(size):
+		for j in range(size):
+			if DQ[i][j]&4 or DQ[i][j]&16 or DQ[i][j]&512 or DQ[i][j]&32: #or IsCosmicRay(image,error,i,j,size):
+				if i+1<size and j<size-1 and j>=0 and i>=0:
+					#newfunc=interpolate.interp2d([i+1,i+1,i+1,i,i,i-1,i-1,i-1],[j+1,j,j-1,j+1,j-1,j+1,j,j-1],[image[i+1][j+1],image[i+1][j],image[i+1][j-1],image[i][j+1],image[i][j-1],image[i-1][j+1],image[i-1][j],image[i-1][j-1]],kind='linear')
+					#image[i][j]=newfunc(i,j)
+					image[i][j]=1/8*(image[i+1][j+1]+image[i+1][j]+image[i+1][j-1]+image[i][j+1]+image[i][j-1]+image[i-1][j+1]+image[i-1][j]+image[i-1][j-1])
+				elif i==size-1 and j<size-1 and j>=0:
+					image[i][j]=1/5*(image[i][j+1]+image[i][j-1]+image[i-1][j+1]+image[i-1][j]+image[i-1][j-1])
+				elif i==0 and j<size-1 and j>=0:
+					image[i][j]=1/5*(image[i][j+1]+image[i][j-1]+image[i+1][j+1]+image[i+1][j]+image[i+1][j-1])
+				elif j==size-1 and i<size-1 and i>=0:
+					image[i][j]=1/5*(image[i+1][j]+image[i+1][j]+image[i][j-1]+image[i-1][j]+image[i-1][j-1])
+				elif j==0 and i<size-1 and i>=0:
+					image[i][j]=1/5*(image[i+1][j+1]+image[i+1][j]+image[i][j+1]+image[i-1][j+1]+image[i-1][j])
+				elif j==size-1 and i==size-1:
+					image[i][j]==1/3*(image[i][j-1]+image[i-1][j-1]+image[i-1][j])
+				elif i==0 and j==size-1:
+					image[i][j]==1/3*(image[i][j-1]+image[i+1][j-1]+image[i+1][j])
+				elif j==0 and i==size-1:
+					image[i][j]==1/3*(image[i][j+1]+image[i-1][j+1]+image[i-1][j])
+				elif i==0 and j==0:
+					image[i][j]=1/3*(image[i][j+1]+image[i+1][j+1]+image[i+1][j])
+	return image
+
+
+#wheretoread=open("/Users/apple/Desktop/summerresearch/Apai/Trappist/Raw_light_Curve_Reduced.txt")
+#for line in wheretoread.readlines():
+#	string=line.split(' ')
+#	filenamelist.append(string[3])
+Refimage=np.array(fits.open("/Users/apple/Desktop/summerresearch/Apai/Trappist/14500data/id4301qgq_ima.fits")[1].data[5:-5])
+Referror=np.array(fits.open("/Users/apple/Desktop/summerresearch/Apai/Trappist/14500data/id4301qgq_ima.fits")[2].data[5:-5])
+RefDQ=np.array(fits.open("/Users/apple/Desktop/summerresearch/Apai/Trappist/14500data/id4301qgq_ima.fits")[3].data[5:-5])
+Refimage=RemoveBadPixels(Refimage,RefDQ,Referror,256)
+recordfile=open("/Users/apple/Desktop/summerresearch/Apai/Trappist/shift2.txt",'w')
+
+
+
+
+
+for name in filenamelist:
+	hdulist=fits.open("/Users/apple/Desktop/summerresearch/Apai/Trappist/14500data/%s_ima.fits"%name)
+	image=np.array(hdulist[1].data[5:-5])
+	DQ=np.array(hdulist[3].data[5:-5])
+	error=np.array(hdulist[2].data[5:-5])
+	image=RemoveBadPixels(image,DQ,error,256)
+	#pl.matshow(image)
+	#pl.show()
+	#pl.matshow(DQ)
+	#pl.show()
+	dx1, dy1 = register_images(image, Refimage, usfac=2000)
+	print(dx1,dy1)
+	recordfile.write(str(dx1))
+	recordfile.write(' ')
+	recordfile.write(str(dy1))
+	recordfile.write('\n')
